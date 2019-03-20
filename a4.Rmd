@@ -72,6 +72,8 @@ TF <- sum(df4$over) +1
 
 # Introduction 
 
+The truck factor is `r TF`.
+
 We are going to compute the truck factor of each project. For each file we need to compute its degree of authorship (DOA):
 
 ```
