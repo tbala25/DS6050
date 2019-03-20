@@ -1,0 +1,88 @@
+---
+title: Truck Report
+author:
+  - name: Tejas Bala
+    email: alice@example.com
+    affiliation: Khoury
+abstract: |
+  This is my report on how to compute truck factors for GitHub projects.
+output: rticles::acm_article
+---
+
+```{r, echo=FALSE, warning= FALSE, message= FALSE}
+library(dplyr)
+library(readr)
+f <- read_csv("commit_files/Automattic_mongoose.csv.gz")
+f %>%
+  rename(add=`added lines`, deleted = `deleted lines`) %>%
+  filter(add != 0)  %>%
+  filter(grepl("\\.cc$|\\.c$|\\.js$|\\.py$|\\.R$", file)) %>%
+  select(-add,-deleted) -> f1
+
+m <- read_csv("commit_metadata/Automattic_mongoose.csv.gz")
+
+m %>%
+  rename(author=`author name`, time = `author timestamp`) %>%
+  select(hash,author,time) -> m1
+
+f1 %>% left_join(m1, by="hash") %>%
+  select(-hash) -> joined
+
+stopifnot(nrow(f1) == nrow(joined))
+
+joined %>%
+  group_by(file) %>%
+  arrange(time, .by_group = TRUE) %>%
+  summarize(first = first(author)) -> first_author
+
+joined %>%
+  group_by(file, author) %>%
+  summarize(n=n()) -> ind_contributions
+
+joined %>%
+  group_by(file) %>%
+  summarize(n=n()) -> tot_contributions
+
+first_author %>%
+  left_join(tot_contributions,by="file") %>%
+  inner_join(ind_contributions, by="file") %>%
+  rename(DL=n.y,AC=n.x)  %>% 
+  mutate(FA = author == first) %>%
+  select(author, FA, DL, AC, file) -> df
+
+DOA = 3.293 + 1.098 * df$FA + 0.164 * df$DL - 0.321 * log(1 + df$AC)
+
+df %>% mutate(doa= DOA) %>% select(author, doa, file) -> df2
+
+df2 %>%
+  group_by(file) %>%
+  arrange(desc(doa)) %>%
+  summarize(author=first(author)) -> df3
+
+df3 %>%
+  group_by(author) %>%
+  summarize(n=n()/nrow(df3)) %>%
+  arrange(desc(n)) %>%
+  mutate(cs = cumsum(n)) %>%
+  mutate(over = cs < .5) ->df4
+
+TF <- sum(df4$over) +1
+
+```
+
+# Introduction 
+
+We are going to compute the truck factor of each project. For each file we need to compute its degree of authorship (DOA):
+
+```
+DOA = 3.293 + 1.098 * FA + 0.164 * DL - 0.321 * ln(1 + AC)
+```
+where FA is true if this author is the first author, DL is the number of commits by that author, and AC is the total number of commits by other authors.
+
+# Methods
+
+How am I going to do it
+
+# Result
+
+What did I get
